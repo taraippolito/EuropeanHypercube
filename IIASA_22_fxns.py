@@ -64,7 +64,7 @@ def get_N_exp(crop, N, r, obs_df):
     return (return_df)
 
 # DEFINE FUNCTION FOR PULLING ALL MONTHLY SIMULATION DATA TOGETHER FOR A GIVEN CROP X N X RESIDUE FOR EACH SIMU x YEAR
-def all_run_data(arg): 
+def all_run_data(arg, pull_vars): 
     crop = arg[0]
     nitr = arg[1]
     res = arg[2]
@@ -80,7 +80,7 @@ def all_run_data(arg):
 
     # OR CHOOSE VARIABLES YOURSELF
     # pull nitrogen and total organic carbon
-    variables = ['FNO3', 'TOC', 'ACY']
+    variables = pull_vars
 
     # pull files for specific nitrogen and residues 
     crop_nitr_res_files = [file for file in file_names if nitr in file and res in file]
@@ -280,7 +280,7 @@ def tt_split_scale(df, target):
     df.dropna(inplace= True)
     
     # columns to use in analysis - monthly data
-    X_cols = [col for col in df.columns if col not in ['SimUID', 'SCEN', 'YR', 'YLDG', 'BIOM']]
+    X_cols = [col for col in df.columns if col not in ['CROP', 'SCEN', 'YLDG', 'YLDF', 'YLC', 'BIOM', 'RW', 'mean_OCPD_change']]
     
     # set target variable as YLDG 
     y = df[target].astype('float64')

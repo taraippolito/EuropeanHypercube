@@ -18,12 +18,11 @@ simU_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_
 pet_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_PET.txt", sep = ",")
 prcp_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_PRCP.txt", sep = ",")
 rad_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_RAD.txt", sep = ",")
-tmin_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_TMN.txt", sep = ",")
-tmax_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_TMX.txt", sep = ",")
+tmean_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_TMEAN.txt", sep = ",")
 vpd_df = pd.read_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_Weather//CORN_dyn_rf_BAU_R00_VPD.txt", sep = ",")
 
 # change year to string values
-for df in [pet_df, prcp_df, rad_df, tmin_df, tmax_df, vpd_df]: 
+for df in [pet_df, prcp_df, rad_df, tmean_df, vpd_df]: 
     df["YR"] = df["YR"].astype(str)
     print ("done.")
 
@@ -43,7 +42,7 @@ cmd_df["AGG"] = cmd_df[cols].sum(axis = 1)
 data_frames = []
 # change columns to be variable specific 
 # for all climate dataframes
-for df in [pet_df, prcp_df, rad_df, tmin_df, tmax_df, vpd_df, cmd_df]:
+for df in [pet_df, prcp_df, rad_df, tmean_df, vpd_df, cmd_df]:
     # create mean column 
     df["MEAN"] = (df.AGG / 12)    
     # pull column names 
@@ -70,6 +69,26 @@ clim_merged = reduce(lambda left,right: pd.merge(left,right,on=['SimUID', 'YR'],
 # merge simU data to climate data 
 simU_merged = pd.merge(clim_merged, simU_df, on = "SimUID", how = "left")
 
+
+# calculate soil attributes for the full soil profile depth 
+simU_merged['full_depth'] = simU_merged.TOPL + simU_merged.SUBL 
+
+# average these variables using weighted average
+get_avgs = ["SAND", "SILT", "CLAY", "BD", "BS", "CEC", "SOB", "PH", "VS", "KS"]
+# sum these variables
+get_sums = ["FWC", "WP"]
+
+# calculate profile averages of variables 
+for var in get_avgs: 
+    av_me = [col for col in simU_merged.columns if var in col]
+    simU_merged[(var + "_PROFILE")] = simU_merged[av_me[0]] * (simU_merged.TOPL / simU_merged.full_depth) +  simU_merged[av_me[-1]] * (simU_merged.SUBL / simU_merged.full_depth)
+ # calculate profile sum of variables   
+for var in get_sums: 
+    av_me = [col for col in simU_merged.columns if var in col]
+    simU_merged[(var + "_PROFILE")] = simU_merged[av_me[0]] +  simU_merged[av_me[-1]]
+
+
+# save files
 clim_merged.to_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_SimUData//SimUID_clim.csv")
 simU_merged.to_csv("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//_SimUData//SimUID_static+clim.csv")
 
