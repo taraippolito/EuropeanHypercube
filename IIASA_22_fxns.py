@@ -314,6 +314,50 @@ def tt_split_scale(df, target):
     # return the split & scaled data
     return (scaled_X_train, scaled_X_test, scaled_y_train, scaled_y_test, train_ind)
 
+def tt_split_scale_SCALER(df, target):
+    # import statements for running in parallel 
+    import sklearn.model_selection
+    import sklearn.preprocessing
+    import pandas as pd 
+    
+    # drop na 
+    df.dropna(inplace= True)
+    
+    # columns to use in analysis - monthly data
+    X_cols = [col for col in df.columns if col not in ['CROP', 'SCEN', 'YLDG', 'YLDF', 'YLC', 'BIOM', 'RW', 'mean_OCPD_change', 'YLDG_std', 'mean_OCPD_change_std']]
+    
+    # set target variable as YLDG 
+    y = df[target].astype('float64')
+    # set x columns as all other columns
+    X_df = df[X_cols].astype('float64')
+    
+    # train test split - 75/25 split
+    X_train, X_test, y_train, y_test = sklearn.model_selection.train_test_split(X_df, y, test_size=0.25, random_state=42)
+    # print ("finished TT split.")
+
+    train_ind = X_train.index.to_list()
+    
+    # instantiate scaler
+    scaler_X = sklearn.preprocessing.StandardScaler()
+    scaler_y = sklearn.preprocessing.StandardScaler()
+
+    # fit scaler to training sets
+    scaler_X.fit(X_train)
+    scaler_y.fit(y_train.to_numpy().reshape(-1, 1))
+    # print ("finished fitting scaler.")
+    
+    # transform the train and test sets accordingly
+    scaled_X_train = scaler_X.transform(X_train)
+    scaled_X_test = scaler_X.transform(X_test)
+    # print ("finished X transformation.")
+    
+    scaled_y_train = scaler_y.transform(y_train.to_numpy().reshape(-1, 1))
+    scaled_y_test = scaler_y.transform(y_test.to_numpy().reshape(-1, 1))   
+    # print ("finished y transformation.")
+    
+    # return the split & scaled data
+    return (scaled_X_train, scaled_X_test, scaled_y_train, scaled_y_test, train_ind, scaler_y, scaler_X)
+
 
 def random_forest(X_train, X_test, y_train, y_test, n_est, depth): 
     import sklearn.ensemble 
