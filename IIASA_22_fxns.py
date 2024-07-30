@@ -1,67 +1,6 @@
-# get data 
-def get_N_exp(crop, N, r, obs_df):
-    import os 
-    import pandas as pd 
-
-    file_names = os.listdir("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop)
-    # get annual files to pull yield 
-    acy_files = [file for file in file_names if "ACY" in file]
-    # get FNO3 files to pull AGG_FNO3
-    N_files = [file for file in file_names if "FNO3" in file]
-    
-    # placeholder of dataframe so it updates iteratively
-    merge_me = obs_df
-    
-    print ("starting ACY loop.")
-    for acy in acy_files: 
-        add_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), acy)
-        # open the file 
-        add = pd.read_csv(add_path)
-        scen = add.SCEN.unique()[0][7:-3]
-        amended = [(scen + col) for col in add.columns[4:]]
-        new_cols = (list(add.columns[:4]) + amended)
-        add.columns = new_cols
-        print (acy, " open.")
-        
-        # then join this to the starting dataframe 
-        merged = pd.merge(merge_me, add, how = "left", left_on = ["SimUID", "YR"], right_on = ["SimUID", "YR"])
-        # drop index column 
-#         merged.drop("index", axis = 1, inplace = True)
-        print (merged.columns)
-        # update dataframe to merge
-        merge_me = merged
-        
-        print (acy, " merged.")
-    
-    print ("starting N loop")
-    for N in N_files: 
-        add_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), N)
-        # open the file 
-        add = pd.read_csv(add_path)
-        scen = add.SCEN.unique()[0][7:-3]
-        amended = [(scen + col) for col in add.columns[5:]]
-        new_cols = (list(add.columns[:5]) + amended)
-        add.columns = new_cols
-        merge_cols = ["SimUID", "YR"] + [col for col in add.columns if "AGG" in col]
-        ready = add[merge_cols]
-        
-        print (N, " open.")
-
-        # then join this to the starting dataframe 
-        merged = pd.merge(merge_me, ready, how = "left", left_on = ["SimUID", "YR"], right_on = ["SimUID", "YR"])
-        # drop index column 
-#         merged.drop("index", axis = 1, inplace = True)
-        print (merged.columns)
-        # update dataframe to merge
-        merge_me = merged
-        
-        print (N, " merged.")
-
-    # change index to simUID 
-    return_df = merged.set_index('SimUID')
-    
-    # return the fully merged dataframe at the end
-    return (return_df)
+#############################################################################################################################################
+################################## PYTHON FUNCTIONS USED IN THE FINALIZED PIPELINE ##########################################################
+########################### BE CAREFUL TO CHANGE PATHS AS NEEDED ############################################################################
 
 # DEFINE FUNCTION FOR PULLING ALL MONTHLY SIMULATION DATA TOGETHER FOR A GIVEN CROP X N X RESIDUE FOR EACH SIMU x YEAR
 def all_run_data(arg, pull_vars): 
@@ -130,31 +69,6 @@ def all_run_data(arg, pull_vars):
     return (return_df)
 
 
-def yield_run_data(arg): 
-    crop = arg[0]
-    nitr = arg[1]
-    res = arg[2]
-    # import statements for parallen processing
-    import os 
-    import pandas as pd
-    
-    # first pull all of the necessary data 
-    # pull all variable names which will get linked to annual metrics 
-    file_names = os.listdir("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop)
-    # pull specific variable names - using N100 just to pull variable names 
-    variables = [f[21:-4] for f in [file for file in file_names if "N100" in file]]
-    # pull files for specific nitrogen and residues 
-    crop_nitr_res_files = [file for file in file_names if nitr in file and res in file]
-    
-    # starter dataframe = yearly measurement dataframe
-    start_file = [file for file in crop_nitr_res_files if "ACY" in file][0]
-    start_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), start_file)
-    start = pd.read_csv(start_path)
-    
-    # return the fully merged dataframe at the end
-    return (start)
-
-
 # get season length, start and end dates for a given treatment 
 # pass in a dataframe of biomass data per simulation unit x year 
 def get_season_info(arg):
@@ -196,12 +110,6 @@ def get_season_info(arg):
     
     return(out)
 
-# pass in: 
-# row from seasonal stats dataframe (calculated from biomass data)
-# climate variable dataframe with year column in tact
-# the metric desired: "skew", "mean", "sum" 
-# the duration: "gs" for growing season or "gsy" for growing season year 
-
 def get_gs_climate(arg):
     df = arg[0]
     clim_var_df = arg[1]
@@ -230,32 +138,6 @@ def get_gs_climate(arg):
     out_df = pd.merge(df, GS_df, how= "left", on = "SimUID")
 
     return (out_df)
-    # 
-def row_gsy_climate(row, clim_var_df, metric):
-    import pandas as pd
-    import scipy 
-    # pull the specific rows needed from climate variable dataframe
-    row_clim = clim_var_df[(clim_var_df.SimUID == row.SimUID) & (clim_var_df.YR == row.YR)]
-    row_clim_2 = clim_var_df[(clim_var_df.SimUID == row.SimUID) & (clim_var_df.YR == (row.YR + 1))]
-    
-    # month columns to reference with indices
-    months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
-    
-    # get the months to calculate metric over 
-    dur_months = months[row.start_index:]
-    dur_months_22 = months[:row.start_index]    
-    
-    # if the metric is "sum" 
-    if metric == "sum":
-        output = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten())).sum()
-    elif metric == "mean": 
-        output = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten())).mean()
-    else: 
-        # to calculate skew between two dataframes create array first
-        arr = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten()))
-        output = scipy.stats.skew(arr)
-        
-    return (output)
 
 
 def split_data(full_df):
@@ -315,6 +197,8 @@ def tt_split_scale(df, target):
     return (scaled_X_train, scaled_X_test, scaled_y_train, scaled_y_test, train_ind)
 
 def tt_split_scale_SCALER(df, target):
+    # ************ returns the scaler as well as the scaled data
+    
     # import statements for running in parallel 
     import sklearn.model_selection
     import sklearn.preprocessing
@@ -357,7 +241,129 @@ def tt_split_scale_SCALER(df, target):
     
     # return the split & scaled data
     return (scaled_X_train, scaled_X_test, scaled_y_train, scaled_y_test, train_ind, scaler_y, scaler_X)
+    
+    
+####################################################################################################################################################################################################################
+################################## EXTRA FUNCTIONS, NOT NECESSARILY IN USE ANYMORE IN THE FINALIZED PIPELINE #######################################################################################################
 
+def row_gsy_climate(row, clim_var_df, metric):
+# pass in: 
+# row from seasonal stats dataframe (calculated from biomass data)
+# climate variable dataframe with year column in tact
+# the metric desired: "skew", "mean", "sum" 
+# the duration: "gs" for growing season or "gsy" for growing season year 
+    import pandas as pd
+    import scipy 
+    # pull the specific rows needed from climate variable dataframe
+    row_clim = clim_var_df[(clim_var_df.SimUID == row.SimUID) & (clim_var_df.YR == row.YR)]
+    row_clim_2 = clim_var_df[(clim_var_df.SimUID == row.SimUID) & (clim_var_df.YR == (row.YR + 1))]
+    
+    # month columns to reference with indices
+    months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC']
+    
+    # get the months to calculate metric over 
+    dur_months = months[row.start_index:]
+    dur_months_22 = months[:row.start_index]    
+    
+    # if the metric is "sum" 
+    if metric == "sum":
+        output = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten())).sum()
+    elif metric == "mean": 
+        output = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten())).mean()
+    else: 
+        # to calculate skew between two dataframes create array first
+        arr = np.concatenate((row_clim[dur_months].values.flatten(), row_clim_2[dur_months_2].values.flatten()))
+        output = scipy.stats.skew(arr)
+        
+    return (output)
+
+def yield_run_data(arg): 
+    crop = arg[0]
+    nitr = arg[1]
+    res = arg[2]
+    # import statements for parallen processing
+    import os 
+    import pandas as pd
+    
+    # first pull all of the necessary data 
+    # pull all variable names which will get linked to annual metrics 
+    file_names = os.listdir("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop)
+    # pull specific variable names - using N100 just to pull variable names 
+    variables = [f[21:-4] for f in [file for file in file_names if "N100" in file]]
+    # pull files for specific nitrogen and residues 
+    crop_nitr_res_files = [file for file in file_names if nitr in file and res in file]
+    
+    # starter dataframe = yearly measurement dataframe
+    start_file = [file for file in crop_nitr_res_files if "ACY" in file][0]
+    start_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), start_file)
+    start = pd.read_csv(start_path)
+    
+    # return the fully merged dataframe at the end
+    return (start)
+
+def get_N_exp(crop, N, r, obs_df):
+    import os 
+    import pandas as pd 
+
+    file_names = os.listdir("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop)
+    # get annual files to pull yield 
+    acy_files = [file for file in file_names if "ACY" in file]
+    # get FNO3 files to pull AGG_FNO3
+    N_files = [file for file in file_names if "FNO3" in file]
+    
+    # placeholder of dataframe so it updates iteratively
+    merge_me = obs_df
+    
+    print ("starting ACY loop.")
+    for acy in acy_files: 
+        add_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), acy)
+        # open the file 
+        add = pd.read_csv(add_path)
+        scen = add.SCEN.unique()[0][7:-3]
+        amended = [(scen + col) for col in add.columns[4:]]
+        new_cols = (list(add.columns[:4]) + amended)
+        add.columns = new_cols
+        print (acy, " open.")
+        
+        # then join this to the starting dataframe 
+        merged = pd.merge(merge_me, add, how = "left", left_on = ["SimUID", "YR"], right_on = ["SimUID", "YR"])
+        # drop index column 
+#         merged.drop("index", axis = 1, inplace = True)
+        print (merged.columns)
+        # update dataframe to merge
+        merge_me = merged
+        
+        print (acy, " merged.")
+    
+    print ("starting N loop")
+    for N in N_files: 
+        add_path = os.path.join(("//Users//taraippolito//Desktop//Desktop_Tara’s_MacBook_Pro//EPIC_local//" + crop), N)
+        # open the file 
+        add = pd.read_csv(add_path)
+        scen = add.SCEN.unique()[0][7:-3]
+        amended = [(scen + col) for col in add.columns[5:]]
+        new_cols = (list(add.columns[:5]) + amended)
+        add.columns = new_cols
+        merge_cols = ["SimUID", "YR"] + [col for col in add.columns if "AGG" in col]
+        ready = add[merge_cols]
+        
+        print (N, " open.")
+
+        # then join this to the starting dataframe 
+        merged = pd.merge(merge_me, ready, how = "left", left_on = ["SimUID", "YR"], right_on = ["SimUID", "YR"])
+        # drop index column 
+#         merged.drop("index", axis = 1, inplace = True)
+        print (merged.columns)
+        # update dataframe to merge
+        merge_me = merged
+        
+        print (N, " merged.")
+
+    # change index to simUID 
+    return_df = merged.set_index('SimUID')
+    
+    # return the fully merged dataframe at the end
+    return (return_df)
 
 def random_forest(X_train, X_test, y_train, y_test, n_est, depth): 
     import sklearn.ensemble 
